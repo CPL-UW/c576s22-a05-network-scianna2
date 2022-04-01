@@ -28,6 +28,7 @@ public class GMScript : NetworkBehaviour
     private int _inARow;
     private bool _initialized;
     private int _score;
+    private int _enemyScore;
     
     private RectInt _hBounds = new(BOUNDS_MAX, BOUNDS_MAX, -BOUNDS_MAX, -BOUNDS_MAX);
     private RectInt _eBounds = new(BOUNDS_MAX, BOUNDS_MAX, -BOUNDS_MAX, -BOUNDS_MAX);
@@ -52,6 +53,7 @@ public class GMScript : NetworkBehaviour
     {
         Dirty = true;
         _initialized = false;
+        _score = 0;
     }
 
     private void CheckValidGame()
@@ -89,6 +91,7 @@ public class GMScript : NetworkBehaviour
 
     private const string MSG_TYPE_CHUNK = "CHUNK";
     private const string MSG_TYPE_PIECE = "PIECE";
+    private const string MSG_TYPE_SCORE = "SCORE";
 
     private void SendChunkMessage()
     {
@@ -100,6 +103,11 @@ public class GMScript : NetworkBehaviour
         SendMessageToAll(MSG_TYPE_PIECE,v2s(_myPiece));
     }
 
+    private void SendScoreMessage()
+    {
+        SendMessageToAll(MSG_TYPE_SCORE, _score.ToString());
+    }
+
     void DoNetworkUpdate()
     {
         if (!_networkStarted) return;
@@ -107,11 +115,13 @@ public class GMScript : NetworkBehaviour
         {
             NetworkManager.Singleton.CustomMessagingManager.RegisterNamedMessageHandler(MSG_TYPE_CHUNK, ReceiveChunkMessage);
             NetworkManager.Singleton.CustomMessagingManager.RegisterNamedMessageHandler(MSG_TYPE_PIECE, ReceivePieceMessage);
+            NetworkManager.Singleton.CustomMessagingManager.RegisterNamedMessageHandler(MSG_TYPE_SCORE, ReceiveScoreMessage);
             _networkRegistered = true;
             return;
         }
         SendChunkMessage();
         SendPieceMessage();
+        SendScoreMessage();
     }
 
     private void ReceivePieceMessage(ulong senderID, FastBufferReader reader)
@@ -128,6 +138,12 @@ public class GMScript : NetworkBehaviour
         _enemyChunk = SwitchBounds(s2v(message),_hBounds,_eBounds);
     }
     
+    private void ReceiveScoreMessage(ulong senderID, FastBufferReader reader)
+    {
+        reader.ReadValueSafe(out var message);
+        int.TryParse(message, out var number);
+        _enemyScore = number;
+    }
     
     
     private void Update()
@@ -173,10 +189,21 @@ public class GMScript : NetworkBehaviour
             infoText.text = s.Message;
         }
 
-        if (0 != _fixedUpdateCount++ % _fixedUpdateFramesToWait) return;
+        var fixedFramesToWait = _fixedUpdateFramesToWait;
+        if (_enemyScore < fixedFramesToWait) {
+            fixedFramesToWait = fixedFramesToWait - _enemyScore;
+        }
+        else {
+            fixedFramesToWait = 1;
+        }
+        if (0 != _fixedUpdateCount++ % fixedFramesToWait) return;
         
         PlayerMove(0,-1); // tick down
-        _myChunk = UpdateKillBoard(_hBounds, _myChunk);
+        var row_to_kill = FindKillableRow(_myChunk, _hBounds);
+        if (row_to_kill != NO_ROW) {
+            _score++;
+            _myChunk = KillRowNumber(_myChunk, row_to_kill);
+        }
         
         // infoText.text = $"PTS:{_score}\t\tMAX:{_difficulty}\nCURRIC 576";
         _fixedUpdateCount = 1;

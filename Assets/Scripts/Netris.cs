@@ -13,7 +13,7 @@ using Random = UnityEngine.Random;
 public static class Netris
 {
     public const int BOUNDS_MAX = 25;
-    private const int NO_ROW = -10 * BOUNDS_MAX;
+    public const int NO_ROW = -10 * BOUNDS_MAX;
 
     private static readonly Vector3Int[] PIECE_T = {new(0, -1), new(1, -1), new(0, 0), new(-1, -1)};
     private static readonly Vector3Int[] PIECE_L = {new(0, -1), new(1, -1), new(1, 0), new(-1, -1)};
@@ -160,7 +160,7 @@ public static class Netris
         return NO_ROW != row_to_kill ? KillRowNumber(chunk, row_to_kill) : chunk;
     }
     
-    private static Vector3Int[] KillRowNumber(Vector3Int[] chunk, int row)
+    public static Vector3Int[] KillRowNumber(Vector3Int[] chunk, int row)
     {
         var newChunk = new Vector3Int[] { };
         foreach (var p in chunk)
@@ -179,7 +179,7 @@ public static class Netris
     }
     
 
-    private static int FindKillableRow(Vector3Int[] chunk, RectInt bounds)
+    public static int FindKillableRow(Vector3Int[] chunk, RectInt bounds)
     {
         if (null == chunk) return NO_ROW;
         for (var row = bounds.yMin; row <= bounds.yMax; row++)
